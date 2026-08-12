@@ -76,8 +76,28 @@ jobs:
         run: npm ci
       - name: Run vitest
         run: npm test
+
+      # Guards the CVE gate itself. The gate below decides whether this REQUIRED
+      # check goes green, so its fail-closed properties need a gate of their own —
+      # a security gate that silently passes is indistinguishable from a healthy
+      # repo right up until it isn't. Pure node, no network, no deps.
+      - name: Guard the audit gate (fail-closed unit tests)
+        run: node ../scripts/audit-gate.test.mjs
+
       - name: Audit dependencies (fail on high/critical)
-        run: npm audit --audit-level=high
+        # Was `npm audit --audit-level=high`. That command cannot express "known,
+        # no forward fix", so a single unfixable transitive advisory turns this
+        # REQUIRED check permanently red and blocks every merge — including the
+        # merge that fixes the other advisories. That is not hypothetical here:
+        # it happened on 2026-07-22 and cost this repo 25 days (#39).
+        # audit-gate.mjs keeps the same severity floor (high + critical still
+        # fail) and adds a per-advisory allowlist where each entry has a reason
+        # and a hard EXPIRY: past its date the gate goes red even if the advisory
+        # is gone, so an acceptance cannot become permanent silence.
+        # The allowlist ships EMPTY — nothing is accepted today.
+        # cwd is web/ (job default), which is where the manifest npm audit reads
+        # lives; the script passes no cwd of its own.
+        run: node ../scripts/audit-gate.mjs
 
   # Estate stats.json producer (test-scope facet, backlog #394 / Phase-3 breadth rollout).
   # Publishes a contract-conformant stats.json to the UNPROTECTED `stats-data` branch on every
