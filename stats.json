@@ -1,6 +1,6 @@
 {
   "repo": "neckarshore-skills/ai-phrase-check",
-  "audited_sha": "cc051e1e5b8ce3776aee26039e615685b021e802",
+  "audited_sha": "4ae49273c5305d0a143133e33894df89b2c4f206",
   "red": false,
   "red_detail": null,
   "tests": {
@@ -11,5 +11,5 @@
     "declared": {},
     "lenses": {}
   },
-  "updatedAt": "2026-08-12T10:44:16Z"
+  "updatedAt": "2026-08-20T20:48:18Z"
 }
