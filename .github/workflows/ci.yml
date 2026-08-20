@@ -9,9 +9,16 @@ on:
 permissions:
   contents: read
 
+# Single source of truth for the Node runtime. Was four hand-typed `node-version: 20`
+# lines; a bump then had to be repeated four times and a missed one fails silently,
+# because npm only WARNS on an unsupported engine instead of aborting the install.
+env:
+  NODE_VERSION: "22"
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -38,7 +45,19 @@ jobs:
       # (cd web && npx tsx ...), so the bats job needs Node + web deps.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
+
+      # The runtime is only real if the runner agrees. `env.NODE_VERSION` resolving to an
+      # empty string would leave setup-node picking a default and this job would stay green
+      # on the wrong runtime — the same silent-pass shape as npm warning (not failing) on an
+      # unsupported engine. Compares the running major against NODE_VERSION; nothing hand-typed.
+      - name: Verify the runner is on NODE_VERSION
+        run: |
+          set -euo pipefail
+          actual="$(node -v)"; actual="${actual#v}"; actual="${actual%%.*}"
+          [ -n "${NODE_VERSION:-}" ] || { echo "::error::NODE_VERSION is empty"; exit 1; }
+          [ "$actual" = "$NODE_VERSION" ] || { echo "::error::runner on Node $actual, expected $NODE_VERSION"; exit 1; }
+          echo "Node $actual matches NODE_VERSION"
 
       - name: Install web deps (for the parity JS side)
         run: npm ci --prefix web
@@ -52,11 +71,12 @@ jobs:
 
   cspell:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
       - name: Install cspell + DE dictionary
         run: npm install -g cspell@8 @cspell/dict-de-de
       - name: Run cspell
@@ -64,6 +84,7 @@ jobs:
 
   web-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: web
@@ -71,7 +92,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
+      # The runtime is only real if the runner agrees. `env.NODE_VERSION` resolving to an
+      # empty string would leave setup-node picking a default and this job would stay green
+      # on the wrong runtime — the same silent-pass shape as npm warning (not failing) on an
+      # unsupported engine. Compares the running major against NODE_VERSION; nothing hand-typed.
+      - name: Verify the runner is on NODE_VERSION
+        run: |
+          set -euo pipefail
+          actual="$(node -v)"; actual="${actual#v}"; actual="${actual%%.*}"
+          [ -n "${NODE_VERSION:-}" ] || { echo "::error::NODE_VERSION is empty"; exit 1; }
+          [ "$actual" = "$NODE_VERSION" ] || { echo "::error::runner on Node $actual, expected $NODE_VERSION"; exit 1; }
+          echo "Node $actual matches NODE_VERSION"
+
       - name: Install dependencies
         run: npm ci
       - name: Run vitest
@@ -143,7 +176,7 @@ jobs:
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Install web deps
         run: npm ci --prefix web
